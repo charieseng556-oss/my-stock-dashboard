@@ -69,6 +69,10 @@ def build_custom_heatmap():
                 prefix = "+" if pct_change > 0 else ""
                 label_text = f"{ticker}<br>{prefix}{round(pct_change, 2)}%"
                 
+                prefix = "+" if pct_change > 0 else ""
+                # 🛠️ 僅改動這裡：用 html 的 center 標籤強迫文字在方塊內置中
+                label_text = f"<center><b>{ticker}</b><br>{prefix}{round(pct_change, 2)}%</center>"
+                
                 rows.append({
                     "Ticker": ticker,
                     "Sector": stocks_data["Sector"][i],
@@ -77,6 +81,7 @@ def build_custom_heatmap():
                     "Market_Cap": market_cap,
                     "Label": label_text
                 })
+
         except:
             continue
             
@@ -118,13 +123,13 @@ with col_left:
                 path=['Sector', 'Industry', 'Label'],
                 values='Market_Cap',
                 color='Pct_Change',
-                # 🌟 視覺升級點：擴充更具層次感的台股紅綠漸層配色 (鮮綠 -> 暗綠 -> 黑 -> 暗紅 -> 鮮紅)
+                 # 🌟 完美複製圖片配色：改回美股原廠色階（左紅跌 -> 中黑平 -> 右綠漲）
                 color_continuous_scale=[
-                    [0.0, '#00B050'],   # 大跌鮮綠
-                    [0.4, '#1C2920'],   # 微跌暗綠
-                    [0.5, '#181818'],   # 平盤深黑
-                    [0.6, '#331C1C'],   # 微漲暗紅
-                    [1.0, '#FF4B4B']    # 大漲鮮紅
+                    [0.0, '#E22D30'],   # 大跌（鮮紅，如圖片中的 NVDA -1.90%）
+                    [0.4, '#3A1E1E'],   # 微跌（暗紅，如圖片中的 AMZN -0.80%）
+                    [0.5, '#222222'],   # 平盤（灰黑）
+                    [0.6, '#1C2920'],   # 微漲（暗綠，如圖片中的 META +0.47%）
+                    [1.0, '#00B050']    # 大漲（鮮綠，如圖片中的 AMD +3.99%）
                 ],
                 color_continuous_midpoint=0,
                 template="plotly_dark"  # 🌟 使用內建暗色主題，確保字體色彩維持高對比與美觀

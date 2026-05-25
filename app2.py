@@ -1,7 +1,7 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import yfinance as yf
 import pandas as pd
+import plotly.express as px
 from datetime import datetime
 from google import genai
 
@@ -24,10 +24,65 @@ st.write(f"系統檢查時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 # 2. 自動從後台秘密環境變數中讀取 API 金鑰
 api_key = st.secrets.get("GEMINI_API_KEY")
 
+# 🌟 擴充電股清單，讓方塊更密集、更有高密度專業感
+@st.cache_data(ttl=1800)
+def build_custom_heatmap():
+    stocks_data = {
+        "Ticker": [
+            "MSFT", "AAPL", "NVDA", "GOOGL", "AMZN", "META", "AVGO",
+            "TSLA", "NFLX", "AMD", "INTC", "QCOM", "TXN", "MU",
+            "JPM", "BAC", "V", "MA", "XOM", "CVX", 
+            "LLY", "JNJ", "ABBV", "WMT", "COST"
+        ],
+        "Sector": [
+            "Technology", "Technology", "Technology", "Communication", "Consumer Cyclical", "Communication", "Technology",
+            "Consumer Cyclical", "Communication", "Technology", "Technology", "Technology", "Technology", "Technology",
+            "Financial", "Financial", "Financial", "Financial", "Energy", "Energy",
+            "Healthcare", "Healthcare", "Healthcare", "Consumer Defensive", "Consumer Defensive"
+        ],
+        "Industry": [
+            "Software", "Hardware", "Semiconductors", "Internet", "Retail", "Internet", "Semiconductors",
+            "Automotive", "Entertainment", "Semiconductors", "Semiconductors", "Semiconductors", "Semiconductors", "Semiconductors",
+            "Banking", "Banking", "Services", "Services", "Oil & Gas", "Oil & Gas",
+            "Pharma", "Pharma", "Pharma", "Retail", "Retail"
+        ]
+    }
+    
+    rows = []
+    for i, ticker in enumerate(stocks_data["Ticker"]):
+        try:
+            stock_obj = yf.Ticker(ticker)
+            hist = stock_obj.history(period="2d")
+            
+            if len(hist) >= 2:
+                close_t = hist['Close'].iloc[-1]
+                close_y = hist['Close'].iloc[-2]
+                pct_change = ((close_t - close_y) / close_y) * 100
+                
+                # 基礎權重分配
+                market_cap = 500000000000 if ticker in ["MSFT", "AAPL", "NVDA"] else 100000000000
+                try:
+                    market_cap = stock_obj.info.get("marketCap", market_cap)
+                except:
+                    pass
+                
+                rows.append({
+                    "Ticker": ticker,
+                    "Sector": stocks_data["Sector"][i],
+                    "Industry": stocks_data["Industry"][i],
+                    "Pct_Change": round(pct_change, 2),
+                    "Market_Cap": market_cap,
+                    "Label": f"<b>{ticker}</b><br>{round(pct_change, 2)}%"
+                })
+        except:
+            continue
+            
+    return pd.DataFrame(rows)
+
 # 3. 網頁佈局
 col_left, col_right = st.columns([1.3, 1.5])
 
-# === 左半邊：數字大盤與 Finviz 官方原生熱力圖 Widget ===
+# === 左半邊：數字大盤與高質感自製熱力圖 ===
 with col_left:
     st.subheader("📈 主要市場昨日表現")
     market_tickers = {"S&P 500 指數": "^GSPC", "費城半導體": "^SOX", "台積電 ADR": "TSM", "輝達 NVDA": "NVDA"}
@@ -48,21 +103,50 @@ with col_left:
     
     st.divider()
     
-    # 🌟 核心改進：嵌入 Finviz 官方特製、無安全鎖、與原廠完全一致的 HTML5 地圖小工具
-    st.subheader("🗺️ S&P 500 全球板塊熱力圖 (Finviz 原廠小工具)")
-    
-    finviz_widget_html = """
-    <iframe src="https://finviz.com" 
-            width="100%" 
-            height="550" 
-            frameborder="0" 
-            scrolling="no" 
-            style="border:0; margin:0; padding:0; background-color: #1A1A1A;">
-    </iframe>
-    """
-    # 使用 components.html 渲染，高度設定為 560
-    components.html(finviz_widget_html, height=560, scrolling=False)
-    st.write("💡 *地圖由 Finviz 官方原生驅動。若需看美股習慣的「綠漲紅跌」，可新開官網分頁對照。*")
+    # 呈現自製精美熱力圖
+    st.subheader("🗺️ 美股權值股熱力圖 (高質感台股配色)")
+    with st.spinner("正在優化渲染高質感地圖..."):
+        df_heatmap = build_custom_heatmap()
+        
+        if not df_heatmap.empty:
+            # 建立樹狀圖
+            fig = px.treemap(
+                df_heatmap,
+                path=['Sector', 'Industry', 'Label'],
+                values='Market_Cap',
+                color='Pct_Change',
+                # 優化漸層配色：亮綠 -> 暗灰 -> 亮紅
+                color_continuous_scale=[
+                    [0.0, '#00B050'],   # 大跌（台股鮮綠）
+                    [0.45, '#1E2520'],  # 微跌
+                    [0.5, '#1A1A1A'],   # 平盤（深灰）
+                    [0.55, '#2D1E1E'],  # 微漲
+                    [1.0, '#FF4B4B']    # 大漲（台股鮮紅）
+                ],
+                color_continuous_midpoint=0,
+                template="plotly_dark"  # 100% 安全：使用內建暗色主題，絕不報錯
+            )
+            
+            # 使用最安全、不更動字體大小、無相容性問題的排版設定
+            fig.update_layout(
+                margin=dict(t=10, l=10, r=10, b=10),
+                height=530,
+                coloraxis_showscale=False,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            
+            # 精細的邊框外觀調整（不使用會報錯的 textfont_size 引數）
+            fig.update_traces(
+                textposition="inside",
+                marker=dict(pad=dict(t=2, b=2, l=2, r=2)) # 用間距代替粗線條，呈現高擬真網格感
+            )
+            
+            # 渲染互動圖表
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            st.write("💡 *滑鼠移到方塊上可看詳情，點擊板塊方塊可局部放大。*")
+        else:
+            st.warning("暫時無法即時繪製熱力圖，請重新整理網頁。")
 
 
 # === 右半邊：AI 盤前消息與板塊分析 ===

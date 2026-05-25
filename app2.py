@@ -70,9 +70,9 @@ def build_custom_heatmap():
                 label_text = f"{ticker}<br>{prefix}{round(pct_change, 2)}%"
                 
                 prefix = "+" if pct_change > 0 else ""
-                # 🛠️ 僅改動這裡：用 html 的 center 標籤強迫文字在方塊內置中
-                label_text = f"<center><b>{ticker}</b><br>{prefix}{round(pct_change, 2)}%</center>"
-                
+                # 🛠️ 修正點：拿掉不支援的 html 標籤，只保留標準粗體與換行
+                label_text = f"<b>{ticker}</b><br>{prefix}{round(pct_change, 2)}%"
+
                 rows.append({
                     "Ticker": ticker,
                     "Sector": stocks_data["Sector"][i],
@@ -135,14 +135,18 @@ with col_left:
                 template="plotly_dark"  # 🌟 使用內建暗色主題，確保字體色彩維持高對比與美觀
             )
             
-            # 安全調整排版：僅微調邊距與背景，不觸碰會報錯的文字內聯引數
+             # 安全調整排版：僅微調邊距與背景，不觸碰會報錯的文字內聯引數
             fig.update_layout(
-                margin=dict(t=25, l=10, r=10, b=10), # 給上方分類標籤留出呼吸空間
+                margin=dict(t=25, l=10, r=10, b=10), 
                 height=530,
                 coloraxis_showscale=False,
-                paper_bgcolor='rgba(0,0,0,0)',       # 背景透明融合網頁
+                paper_bgcolor='rgba(0,0,0,0)',       
                 plot_bgcolor='rgba(0,0,0,0)'
             )
+            
+            # 🛠️ 核心修正點：利用官方認證的 textposition 屬性，強迫全體代號在格子內部水平、垂直全面置中
+            fig.update_traces(textposition="middle center")
+
             
             # 渲染互動圖表
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})

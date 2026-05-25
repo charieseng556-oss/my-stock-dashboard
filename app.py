@@ -56,18 +56,37 @@ with col_ai:
     else:
         with st.spinner("AI 正在為您閱讀昨晚全球財經新聞，請稍候..."):
             try:
-                # 4-1. 自動抓取標普500大盤的最新相關新聞文字
-                spy = yf.Ticker("^GSPC")
-                news_list = spy.news
+                                # 4-1. 改用 Google 新聞 RSS 抓取全球即時財經與美股焦點新聞
+                import urllib.request
+                import xml.etree.ElementTree as ET
                 
-                # 組合新聞文本餵給 AI
                 news_context = ""
-                for i, news in enumerate(news_list[:8]): # 抓取前8條最新美股新聞
-                    news_context += f"標題: {news.get('title')}\n摘要: {news.get('summary', '')}\n\n"
-                
+                try:
+                    # 抓取 Google News 的商業與財經專區新聞
+                    url = "https://google.com"
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req) as response:
+                        xml_data = response.read()
+                    
+                    root = ET.fromstring(xml_data)
+                    # 抓取前 15 條最新的美股/全球重大財經新聞標題
+                    for item in root.findall('.//item')[:15]:
+                        title = item.find('title').text if item.find('title') is not None else ""
+                        description = item.find('description').text if item.find('description') is not None else ""
+                        news_context += f"標題: {title}\n摘要: {description}\n\n"
+                except Exception as rss_err:
+                    # 如果 RSS 失敗，備用方案：抓取個別個股新聞組合
+                    news_context = ""
+                    for tkr in ["^GSPC", "NVDA", "TSM"]:
+                        try:
+                            for n in yf.Ticker(tkr).news[:3]:
+                                news_context += f"標題: {n.get('title')}\n"
+                        except:
+                            pass
+
                 # 4-2. 呼叫新版 Google Gemini API 進行繁體中文分析
                 client = genai.Client(api_key=api_key)
-                
+
                 prompt = f"""
                 你是一位專業的華爾街財經分析師。請根據以下昨晚最新的美股新聞與市場資訊：
                 

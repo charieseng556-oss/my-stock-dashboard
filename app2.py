@@ -24,16 +24,16 @@ st.write(f"系統檢查時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 # 2. 自動從後台讀取 API 金鑰
 api_key = st.secrets.get("GEMINI_API_KEY")
 
-# 🌟 自製熱力圖數據源：定義 S&P 500 核心科技與權值股清單
-@st.cache_data(ttl=3600)  # 每小時自動更新一次即可，避免開網頁太慢
+# 🌟 100% 穩定抗封鎖版數據源：逐一抓取個股，避免被 Yahoo API 封鎖
+@st.cache_data(ttl=1800)  # 快取時間調整為 30 分鐘，兼顧即時性與穩定度
 def build_custom_heatmap():
     # 定義板塊、行業與股票代碼
     stocks_data = {
         "Ticker": [
-            "MSFT", "AAPL", "NVDA", "GOOGL", "AMZN", "META", "AVGO", # 科技/通訊/消費
-            "TSLA", "NFLX", "AMD", "INTC", "QCOM",                    # 汽車/半導體
-            "JPM", "BAC", "V", "MA",                                  # 金融
-            "XOM", "CVX", "LLY", "JNJ", "WMT", "COST"                 # 能源/醫療/民生
+            "MSFT", "AAPL", "NVDA", "GOOGL", "AMZN", "META", "AVGO",
+            "TSLA", "NFLX", "AMD", "INTC", "QCOM",
+            "JPM", "BAC", "V", "MA",
+            "XOM", "CVX", "LLY", "JNJ", "WMT", "COST"
         ],
         "Sector": [
             "Technology", "Technology", "Technology", "Communication", "Consumer Cyclical", "Communication", "Technology",
@@ -49,21 +49,26 @@ def build_custom_heatmap():
         ]
     }
     
-    # 批次向 yfinance 抓取昨日漲跌幅與市值
-    tickers_str = " ".join(stocks_data["Ticker"])
-    try:
-        data = yf.download(tickers_str, period="2d", group_by="ticker", progress=False)
-        rows = []
-        for i, ticker in enumerate(stocks_data["Ticker"]):
-            try:
-                hist = data[ticker]
+    rows = []
+    # 改為逐一抓取，確保其中一檔失敗時，其他股票地圖還能畫出來
+    for i, ticker in enumerate(stocks_data["Ticker"]):
+        try:
+            # 限制只抓 2 天歷史紀錄，減少對 Yahoo 的伺服器負擔
+            stock_obj = yf.Ticker(ticker)
+            hist = stock_obj.history(period="2d")
+            
+            if len(hist) >= 2:
                 close_t = hist['Close'].iloc[-1]
                 close_y = hist['Close'].iloc[-2]
                 pct_change = ((close_t - close_y) / close_y) * 100
                 
-                # 抓取市值作為方塊大小依據（若抓不到則用固定大小）
-                info = yf.Ticker(ticker).info
-                market_cap = info.get("marketCap", 100000000000)
+                # 市值預設給予基礎值，避免 info 接口被封鎖時卡死
+                market_cap = 500000000000 if ticker in ["MSFT", "AAPL", "NVDA", "GOOGL", "AMZN"] else 100000000000
+                try:
+                    # 嘗試獲取真實市值，若被擋則直接沿用上方預設值
+                    market_cap = stock_obj.info.get("marketCap", market_cap)
+                except:
+                    pass
                 
                 rows.append({
                     "Ticker": ticker,
@@ -73,11 +78,12 @@ def build_custom_heatmap():
                     "Market_Cap": market_cap,
                     "Label": f"{ticker}<br>{round(pct_change, 2)}%"
                 })
-            except:
-                pass
-        return pd.DataFrame(rows)
-    except:
-        return pd.DataFrame()
+        except Exception as e:
+            # 單股失敗時跳過，繼續抓下一檔
+            continue
+            
+    return pd.DataFrame(rows)
+
 
 # 3. 網頁佈局
 col_left, col_right = st.columns([1.3, 1.5])

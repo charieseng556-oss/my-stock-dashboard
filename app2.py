@@ -6,7 +6,7 @@ from datetime import datetime
 from google import genai
 
 # 1. 網頁基本設定
-st.set_page_config(page_title="全球盤前 AI 戰情室", page_icon="🔮", layout="wide")
+st.set_page_config(page_title="盤前資訊整理", page_icon="🔮", layout="wide")
 
 # 注入 CSS 讓 metric 顯示符合台灣習慣 (紅漲綠跌)
 st.markdown("""
@@ -18,7 +18,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🔮 全球股市盤前 AI 戰情室")
+st.title("🔮 盤前資訊整理")
 st.write(f"系統檢查時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # 2. 自動從後台秘密環境變數中讀取 API 金鑰
@@ -27,27 +27,77 @@ api_key = st.secrets.get("GEMINI_API_KEY")
 # 🌟 數據源：逐一抓取權值股
 @st.cache_data(ttl=1800)
 def build_custom_heatmap():
-    stocks_data = {
+        stocks_data = {
         "Ticker": [
-            "MSFT", "AAPL", "NVDA", "GOOGL", "AMZN", "META", "AVGO",
-            "TSLA", "NFLX", "AMD", "INTC", "QCOM",
-            "JPM", "BAC", "V", "MA",
-            "XOM", "CVX", "LLY", "JNJ", "WMT", "COST"
+            # === 科技 Technology (26檔) ===
+            "MSFT", "AAPL", "NVDA", "AVGO", "AMD", "QCOM", "TXN", "MU", "INTC", "ADI", 
+            "AMAT", "LRCX", "KLAC", "ASML", "ORCL", "CRM", "ACN", "PANW", "FTNT", "SNPS", 
+            "CDNS", "PLTR", "SMCI", "IBM", "CSCO", "HPE",
+            
+            # === 通訊 Communication (10檔) ===
+            "GOOGL", "META", "NFLX", "DIS", "TMUS", "CMCSA", "VZ", "T", "EA", "TTWO",
+            
+            # === 消費 Consumer Cyclical & Defensive (22檔) ===
+            "AMZN", "TSLA", "HD", "LOW", "NKE", "MCD", "SBUX", "BKNG", "TJX", "CMG",
+            "WMT", "COST", "PG", "KO", "PEP", "PM", "MO", "EL", "CL", "TGT", 
+            "DG", "KR",
+            
+            # === 金融 Financials (15檔) ===
+            "JPM", "BAC", "WFC", "C", "GS", "MS", "AXP", "V", "MA", "PYPL", 
+            "BLK", "BRK-B", "SPGI", "MMC", "CB",
+            
+            # === 醫療 Healthcare (15檔) ===
+            "LLY", "JNJ", "UNH", "VRTX", "MRK", "ABBV", "PFE", "BMY", "AMGN", "GILD", 
+            "ISRG", "MDT", "SYK", "BSX", "TMO",
+            
+            # === 工業、能源與材料 Industrials & Energy & Materials (14檔) ===
+            "GE", "CAT", "HON", "LMT", "RTX", "UPS", "FDX", "XOM", "CVX", "COP", 
+            "SLB", "EOG", "LIN", "APD"
         ],
         "Sector": [
-            "Technology", "Technology", "Technology", "Communication", "Consumer Cyclical", "Communication", "Technology",
-            "Consumer Cyclical", "Communication", "Technology", "Technology", "Technology",
-            "Financial", "Financial", "Financial", "Financial",
-            "Energy", "Energy", "Healthcare", "Healthcare", "Consumer Defensive", "Consumer Defensive"
+            # 科技
+            "Technology", "Technology", "Technology", "Technology", "Technology", "Technology", "Technology", "Technology", "Technology", "Technology",
+            "Technology", "Technology", "Technology", "Technology", "Technology", "Technology", "Technology", "Technology", "Technology", "Technology",
+            "Technology", "Technology", "Technology", "Technology", "Technology", "Technology",
+            # 通訊
+            "Communication", "Communication", "Communication", "Communication", "Communication", "Communication", "Communication", "Communication", "Communication", "Communication",
+            # 消費
+            "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer",
+            "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer", "Consumer",
+            "Consumer", "Consumer",
+            # 金融
+            "Financial", "Financial", "Financial", "Financial", "Financial", "Financial", "Financial", "Financial", "Financial", "Financial",
+            "Financial", "Financial", "Financial", "Financial", "Financial",
+            # 醫療
+            "Healthcare", "Healthcare", "Healthcare", "Healthcare", "Healthcare", "Healthcare", "Healthcare", "Healthcare", "Healthcare", "Healthcare",
+            "Healthcare", "Healthcare", "Healthcare", "Healthcare", "Healthcare",
+            # 工業能源材料
+            "Industrials & Energy", "Industrials & Energy", "Industrials & Energy", "Industrials & Energy", "Industrials & Energy", "Industrials & Energy", "Industrials & Energy", "Industrials & Energy", "Industrials & Energy", "Industrials & Energy",
+            "Industrials & Energy", "Industrials & Energy", "Industrials & Energy", "Industrials & Energy"
         ],
         "Industry": [
-            "Software", "Hardware", "Semiconductors", "Internet", "Retail", "Internet", "Semiconductors",
-            "Automotive", "Entertainment", "Semiconductors", "Semiconductors", "Semiconductors",
-            "Banking", "Banking", "Credit Services", "Credit Services",
-            "Oil & Gas", "Oil & Gas", "Pharma", "Pharma", "Retail", "Retail"
+            # 科技細分
+            "Software", "Hardware", "Semiconductors", "Semiconductors", "Semiconductors", "Semiconductors", "Semiconductors", "Semiconductors", "Semiconductors", "Semiconductors",
+            "Equipment", "Equipment", "Equipment", "Semiconductors", "Software", "Software", "IT Services", "Cybersecurity", "Cybersecurity", "Software",
+            "Software", "AI & Software", "AI Hardware", "IT Services", "Hardware", "Hardware",
+            # 通訊細分
+            "Internet", "Internet", "Entertainment", "Entertainment", "Telecom", "Telecom", "Telecom", "Telecom", "Entertainment", "Entertainment",
+            # 消費細分
+            "Internet Retail", "Automotive", "Retail", "Retail", "Apparel", "Restaurants", "Restaurants", "Travel", "Retail", "Restaurants",
+            "Mega Retail", "Mega Retail", "Household", "Beverages", "Beverages", "Tobacco", "Tobacco", "Personal Care", "Household", "Retail",
+            "Retail", "Grocery",
+            # 金融細分
+            "Banking", "Banking", "Banking", "Banking", "Capital Markets", "Capital Markets", "Credit Services", "Credit Services", "Credit Services", "Credit Services",
+            "Asset Management", "Insurance", "Financial Data", "Insurance Brokers", "Insurance",
+            # 醫療細分
+            "Pharma", "Pharma", "Healthcare Plans", "Biotech", "Pharma", "Pharma", "Pharma", "Pharma", "Biotech", "Biotech",
+            "Medical Devices", "Medical Devices", "Medical Devices", "Medical Devices", "Diagnostics",
+            # 工業能源材料細分
+            "Aerospace", "Machinery", "Conglomerates", "Defense", "Defense", "Logistics", "Logistics", "Oil & Gas", "Oil & Gas", "Oil & Gas",
+            "Oil Services", "Oil & Gas", "Chemicals", "Chemicals"
         ]
     }
-    
+   
     rows = []
     for i, ticker in enumerate(stocks_data["Ticker"]):
         try:
@@ -159,7 +209,7 @@ with col_left:
 
 # === 右半邊：AI 盤前消息與板塊分析 ===
 with col_right:
-    st.subheader("📰 AI 盤前重點消息與板塊分析")
+    st.subheader("📰 盤前重點消息與板塊分析")
     if not api_key:
         st.error("❌ 系統未偵測到內建 API 金鑰！")
     else:

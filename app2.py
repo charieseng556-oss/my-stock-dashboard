@@ -250,7 +250,7 @@ with col_right:
                 response = client.models.generate_content(
                     model='gemini-2.5-flash', contents=prompt, config={'tools': [{'google_search': {}}]} 
                 )
-                           # 1. 顯示 AI 產出的繁體中文報告
+                 # 1. 顯示 AI 產出的繁體中文報告
                 st.markdown(response.text)
                 
                 # 2. 🛠️ 僅改動這裡：自動提取 Google 搜尋的出處，並生成超連結列表
@@ -272,5 +272,6 @@ with col_right:
                                 st.caption(f"🔹 [{title}]({uri})")
                 except:
                     pass # 如果當天沒有觸發聯網，則自動跳過，不影響報錯
-                except Exception as e:
+                    
+            except Exception as e:
                     st.error(f"AI 摘要生成失敗: {e}")

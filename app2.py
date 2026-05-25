@@ -272,5 +272,4 @@ with col_right:
                                 st.caption(f"🔹 [{title}]({uri})")
                 except:
                     pass # 如果當天沒有觸發聯網，則自動跳過，不影響報錯
-                
-            except Exception as e:
+                except Exception as e:

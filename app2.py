@@ -144,7 +144,7 @@ with col_left:
             results.append({"項目": name, "價格": round(hist['Close'].iloc[-1], 2), "漲跌幅(%)": round(pct, 2)})
         except: pass
 
- if results:
+    if results:
         # 建立第一排的 4 個格子
         u_cols = st.columns(4)
         # 建立第二排的 3 個格子

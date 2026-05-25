@@ -71,10 +71,18 @@ with col_left:
     
     st.divider()
     
-    # 內嵌 Finviz S&P 500 互動式熱力圖
+        # 🎯 修正版：直接讀取 Finviz 即時圖片流，避開網頁嵌入限制
     st.subheader("🗺️ S&P 500 前一營業日板塊熱力圖")
-    components.iframe("https://finviz.com", height=550, scrolling=False)
-    st.write("💡 *點擊地圖上的區塊可直接放大查看個股表現。*")
+    
+    # Finviz 官方即時更新的靜態圖片 URL
+    heatmap_url = "https://finviz.com"
+    
+    # 顯示圖片，並設定寬度自動填滿
+    st.image(heatmap_url, use_container_width=True, caption="美股最新板塊分布圖")
+    
+    # 提供一個精美的按鈕，點擊可以直接跳轉到官網看完整的互動操作
+    st.link_button("🔗 點此開啟 Finviz 互動式網頁版", "https://finviz.com")
+
 
 
 # === 右半邊：AI 盤前消息與板塊分析 ===

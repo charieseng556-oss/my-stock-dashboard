@@ -1,22 +1,44 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
 from google import genai
 
-# 1. 網頁基本設定
+# 1. 網頁基本設定（設定為 wide 寬螢幕模式）
 st.set_page_config(page_title="全球盤前 AI 戰情室", page_icon="🔮", layout="wide")
+
+# 注入 CSS 讓 metric 顯示符合台灣習慣 (紅漲綠跌)
+st.markdown("""
+<style>
+    div[data-testid="stMetricDelta"] > div svg {
+        display: none; 
+    }
+    div[data-testid="stMetricDelta"] > div {
+        color: #FF4B4B !important; 
+    }
+    div[data-testid="stMetricDelta"] > div:contains("-") {
+        color: #00B050 !important; 
+    }
+    /* 隱藏左側側邊欄，讓版面更寬大乾淨 */
+    [data-testid="stSidebar"] {
+        display: none;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("🔮 全球股市盤前 AI 戰情室")
 st.write(f"系統檢查時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# 2. 側邊欄：設定您的 AI 金鑰（第一次使用需輸入）
-st.sidebar.header("⚙️ 系統設定")
-api_key = st.sidebar.text_input("輸入 Gemini API Key", type="password", help="請至 Google AI Studio 免費申請")
+# 2. 自動從後台秘密環境變數中讀取 API 金鑰
+# 只要在 Streamlit Cloud 後台設定好，這裡就會自動讀取，安全又省事！
+api_key = st.secrets.get("GEMINI_API_KEY")
 
-# 3. 左半邊：數字大盤數據
-col_data, col_ai = st.columns([1, 1.5])
+# 3. 網頁佈局：左半邊（數據與熱力圖） | 右半邊（AI 盤前消息摘要）
+col_left, col_right = st.columns([1.2, 1.5])
 
-with col_data:
+# === 左半邊：數字大盤與 Finviz 熱力圖 ===
+with col_left:
     st.subheader("📈 主要市場昨日表現")
     market_tickers = {
         "S&P 500 指數": "^GSPC",
@@ -41,66 +63,67 @@ with col_data:
             
     df = pd.DataFrame(results)
     if not df.empty:
-        for _, row in df.iterrows():
-            st.metric(label=row["項目"], value=row["價格"], delta=f"{row['漲跌幅(%)']}%")
+        metric_cols = st.columns(4)
+        for idx, row in df.iterrows():
+            with metric_cols[idx]:
+                prefix = "+" if row["漲跌幅(%)"] > 0 else ""
+                st.metric(label=row["項目"], value=row["價格"], delta=f"{prefix}{row['漲跌幅(%)']}%")
     
     st.divider()
-    st.write("💡 *數據每 5 分鐘自動刷新。*")
+    
+    # 內嵌 Finviz S&P 500 互動式熱力圖
+    st.subheader("🗺️ S&P 500 前一營業日板塊熱力圖")
+    components.iframe("https://finviz.com", height=550, scrolling=False)
+    st.write("💡 *點擊地圖上的區塊可直接放大查看個股表現。*")
 
-# 4. 右半邊：AI 盤前消息摘要
-# 右半邊：AI 盤前消息摘要
-with col_ai:
-    st.subheader("📰 AI 盤前重點消息總覽")
+
+# === 右半邊：AI 盤前消息與板塊分析 ===
+with col_right:
+    st.subheader("📰 AI 盤前重點消息與板塊分析")
     
     if not api_key:
-        st.info("🔑 請在左側欄位輸入您的 Gemini API 金鑰以啟動 AI 盤前摘要功能。")
+        st.error("❌ 系統未偵測到內建 API 金鑰！請至 Streamlit Cloud 後台的 Advanced settings -> Secrets 設定 GEMINI_API_KEY。")
     else:
-        with st.spinner("AI 秘書正透過 Google 搜尋昨晚最新財經大事，請稍候..."):
+        with st.spinner("AI 秘書正透過 Google 搜尋昨晚最新財經大事與熱門板塊，請稍候..."):
             try:
-                # 1. 啟用新版 Client
                 client = genai.Client(api_key=api_key)
                 
-                # 2. 撰寫強力的 Prompt，並強制 AI 在寫報告前必須去 Google 搜尋以下關鍵字
                 prompt = """
-                請你使用內建的 Google 搜尋工具，搜尋以下主題的最新進展（特別是過去 24 小時內的新聞）：
-                1. 「美股 最新消息 財經」
-                2. 「輝達 NVIDIA Nvidia 晶片 科技新聞」
-                3. 「SpaceX Tesla 馬斯克 最新動態」
-                4. 「聯準會 Fed 利率」
+                請你使用內建的 Google 搜尋工具，搜尋以下主題最新、過去 24 小時內（或最新一個美股營業日）的新聞與動態：
+                1. 「美股 最新消息 財經 大盤」
+                2. 「美股 領漲 板塊 科技股 財報」
+                3. 「輝達 NVIDIA Nvidia 晶片 科技新聞」
+                4. 「SpaceX Tesla 馬斯克 最新動態」
+                5. 「聯準會 Fed 利率 官員談話」
                 
                 結合你搜尋到的真實最新內容，為台灣投資人撰寫今天早上 08:30 的「全球盤前重點消息總覽」。
                 
-                【嚴格拒絕廢話與罐頭回覆】
-                如果搜尋到具體新聞，請直接寫出具體事件、公司名稱、數據或政策內容。
-                絕對不准使用「目前並無重大突發新聞」、「交易清淡」、「暫無新的催化劑」等敷衍字眼。
-                就算美股週末休市，也請統整週末期間科技巨頭（如馬斯克、輝達、台積電）的最新動態、國際總經或外媒週報焦點。
-                
-                【格式規範】
-                必須使用「台灣繁體中文」與台灣財經術語，結構如下：
+                【寫作與排版嚴格規範】
+                1. 必須使用「台灣繁體中文」與台灣財經術語。
+                2. 內文中的關鍵專有名詞、數據（例如：H100、20%、華許、CPI等）必須使用 **粗體** 標記。
+                3. 每條新聞開頭必須加上一個對應的「功能性 Emoji」（例如：🇺🇸、🔥、💰、📈）。
+                4. 標題前後絕對不要加上星號或斜體。嚴格依照下方格式與指定的三大區塊輸出：
                 
                 ### 核心市場消息
-                - 地緣政治與總經風險（請寫出具體國家或原油走勢事件）
-                - 聯準會（Fed）動向與政策不確定性
+                - 
+                - 
                 
-                ### 科技與企業動態
-                - AI 需求與科技硬體（如輝達、台積電最新進展，請寫出具體技術或晶片消息）
-                - 傳統巨頭、車廠轉型（如福特、特斯拉、SpaceX 等）與市場重大動態
+                ### 科技與企業動態（含昨日美股熱門板塊分析）
+                - 
+                - 
+                （請在此區塊特別點出：昨晚美股表現最強勢與最弱勢的板塊是哪一個？有哪些權值股有重大進展或資金流入？）
                 
                 ### 本週關注焦點
-                - 本週即將公布財報的代表性企業或重要經濟數據預告
+                - 
                 """
                 
-                # 3. 呼叫 Gemini 並開啟 Google Search 擴充工具
                 response = client.models.generate_content(
                     model='gemini-2.5-flash',
                     contents=prompt,
-                    # 關鍵：開啟 Google 搜尋工具
                     config={'tools': [{'google_search': {}}]} 
                 )
                 
-                # 4. 渲染 AI 生成的精美 Markdown 內容
                 st.markdown(response.text)
                 
             except Exception as e:
                 st.error(f"AI 摘要生成失敗，錯誤訊息: {e}")
-

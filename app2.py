@@ -117,36 +117,37 @@ with col_left:
         df_heatmap = build_custom_heatmap()
         
         if not df_heatmap.empty:
-            # 建立樹狀圖
+        # 建立樹狀圖（強制加上色彩範圍限制，徹底解決極端值稀釋顏色的問題）
             fig = px.treemap(
                 df_heatmap,
                 path=['Sector', 'Industry', 'Label'],
                 values='Market_Cap',
                 color='Pct_Change',
-                 # 🌟 視覺終極進化：微調權重節點，讓 >1% 的漲跌幅色彩對比極度強烈鮮明
+                # 標準美股原廠色階
                 color_continuous_scale=[
-                    [0.0, '#E22D30'],   # 大跌跌深（鮮紅，如 NVDA、GOOGL 立刻被點亮）
-                    [0.25, '#441B1B'],  # 微跌小幅（沉穩暗紅，如 MSFT、AVGO）
-                    [0.5, '#1E1E1E'],   # 平盤不變（高質感深灰黑底）
-                    [0.75, '#16291B'],  # 微漲小幅（沉穩暗綠，如 BAC、META）
-                    [1.0, '#00B050']    # 大漲飆高（鮮綠，如 AMD、QCOM）
+                    [0.0, '#E22D30'],   # 大跌（鮮紅）
+                    [0.35, '#441B1B'],  # 微跌（暗紅）
+                    [0.5, '#1E1E1E'],   # 平盤（深灰黑）
+                    [0.65, '#16291B'],  # 微漲（暗綠）
+                    [1.0, '#00B050']    # 大漲（鮮綠）
                 ],
-
                 color_continuous_midpoint=0,
-                template="plotly_dark"  # 🌟 使用內建暗色主題，確保字體色彩維持高對比與美觀
+                range_color=[-3, 3],    # 🛠️ 核心修正點 1：強制鎖定色彩範圍在 -3% ~ +3% 之間
+                template="plotly_dark"
             )
+
             
              # 安全調整排版：僅微調邊距與背景，不觸碰會報錯的文字內聯引數
             fig.update_layout(
                 margin=dict(t=25, l=10, r=10, b=10), 
                 height=530,
-                coloraxis_showscale=False,
+                coloraxis_showscale=False, # 🛠️ 核心修正點 2：確保隱藏右側的 3 到 -3 數字顏色條
                 paper_bgcolor='rgba(0,0,0,0)',       
                 plot_bgcolor='rgba(0,0,0,0)'
             )
             
-            # 🛠️ 核心修正點：利用官方認證的 textposition 屬性，強迫全體代號在格子內部水平、垂直全面置中
             fig.update_traces(textposition="middle center")
+
 
             
             # 渲染互動圖表

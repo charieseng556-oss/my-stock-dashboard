@@ -135,9 +135,6 @@ with col_left:
             
             # 在網頁渲染互動圖表
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-            st.write("💡 *滑鼠移到方塊上可看詳情，點擊板塊方塊可局部放大。*")
-        else:
-            st.warning("暫時無法即時繪製熱力圖，請重新整理網頁。")
 
 
 # === 右半邊：AI 盤前消息與板塊分析 ===

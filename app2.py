@@ -24,10 +24,10 @@ st.write(f"系統檢查時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 # 2. 自動從後台秘密環境變數中讀取 API 金鑰
 api_key = st.secrets.get("GEMINI_API_KEY")
 
-# 🌟 數據源：逐一抓取權值股
+# 🌟 數據源：權值股抓取（102檔無錯縮進版）
 @st.cache_data(ttl=1800)
 def build_custom_heatmap():
-        stocks_data = {
+    stocks_data = {
         "Ticker": [
             # === 科技 Technology (26檔) ===
             "MSFT", "AAPL", "NVDA", "AVGO", "AMD", "QCOM", "TXN", "MU", "INTC", "ADI", 
@@ -97,7 +97,7 @@ def build_custom_heatmap():
             "Oil Services", "Oil & Gas", "Chemicals", "Chemicals"
         ]
     }
-   
+    
     rows = []
     for i, ticker in enumerate(stocks_data["Ticker"]):
         try:
@@ -115,27 +115,19 @@ def build_custom_heatmap():
                 except:
                     pass
                 
-                # 美化 Label 顯示：加上正號提示，讓排版向原廠靠攏
-                prefix = "+" if pct_change > 0 else ""
-                label_text = f"{ticker}<br>{prefix}{round(pct_change, 2)}%"
-                
-                prefix = "+" if pct_change > 0 else ""
-                # 🛠️ 修正點：拿掉不支援的 html 標籤，只保留標準粗體與換行
-                label_text = f"<b>{ticker}</b><br>{prefix}{round(pct_change, 2)}%"
-
                 rows.append({
                     "Ticker": ticker,
                     "Sector": stocks_data["Sector"][i],
                     "Industry": stocks_data["Industry"][i],
                     "Pct_Change": round(pct_change, 2),
                     "Market_Cap": market_cap,
-                    "Label": label_text
+                    "Label": f"{ticker}<br>{round(pct_change, 2)}%"
                 })
-
         except:
             continue
             
     return pd.DataFrame(rows)
+
 
 # 3. 網頁佈局
 col_left, col_right = st.columns([1.3, 1.5])

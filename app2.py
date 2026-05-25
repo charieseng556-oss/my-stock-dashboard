@@ -144,13 +144,24 @@ with col_left:
             results.append({"項目": name, "價格": round(hist['Close'].iloc[-1], 2), "漲跌幅(%)": round(pct, 2)})
         except: pass
     
-    if results:
-        metric_cols = st.columns(4)
-        for idx, row in enumerate(results):
-            with metric_cols[idx]:
-                prefix = "+" if row["漲跌幅(%)"] > 0 else ""
-                st.metric(label=row["項目"], value=row["價格"], delta=f"{prefix}{row['漲跌幅(%)']}%")
+ if results:
+    # 建立第一排的 4 個格子
+    u_cols = st.columns(4)
+    # 建立第二排的 3 個格子（系統會自動無縫換行）
+    t_cols = st.columns(3)
     
+    for idx, row in enumerate(results):
+        prefix = "+" if row["漲跌幅(%)"] > 0 else ""
+        
+        if idx < 4:
+            # 前 4 個放第一排（道瓊、SP500、費半、台積電ADR）
+            with u_cols[idx]:
+                st.metric(label=row["項目"], value=row["價格"], delta=f"{prefix}{row['漲跌幅(%)']}%")
+        else:
+            # 第 5 個（輝達）以及未來新增的項目，自動改放第二排
+            with t_cols[idx - 4]:
+                st.metric(label=row["項目"], value=row["價格"], delta=f"{prefix}{row['漲跌幅(%)']}%")
+
     st.divider()
     
     # 呈現自製熱力圖

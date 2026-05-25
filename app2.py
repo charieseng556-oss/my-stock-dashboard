@@ -135,7 +135,7 @@ col_left, col_right = st.columns([1.3, 1.5])
 # === 左半邊：數字大盤與自製熱力圖 ===
 with col_left:
     st.subheader("📈 主要市場昨日表現")
-    market_tickers = {"S&P 500 指數": "^GSPC", "費城半導體": "^SOX", "台積電 ADR": "TSM", "輝達 NVDA": "NVDA"}
+    market_tickers = {"道瓊工業指數": "^DJI","S&P 500 指數": "^GSPC", "費城半導體": "^SOX", "台積電 ADR": "TSM", "輝達 NVDA": "NVDA"}
     results = []
     for name, ticker in market_tickers.items():
         try:
@@ -154,7 +154,7 @@ with col_left:
     st.divider()
     
     # 呈現自製熱力圖
-    st.subheader("🗺️ 自製美股權值股熱力圖 (台股高質感配色)")
+    st.subheader("🗺️ SP500熱力圖")
     with st.spinner("正在即時繪製美股板塊地圖..."):
         df_heatmap = build_custom_heatmap()
         

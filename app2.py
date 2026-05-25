@@ -21,13 +21,12 @@ st.markdown("""
 st.title("🔮 全球股市盤前 AI 戰情室")
 st.write(f"系統檢查時間：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# 2. 自動從後台讀取 API 金鑰
+# 2. 自動從後台秘密環境變數中讀取 API 金鑰
 api_key = st.secrets.get("GEMINI_API_KEY")
 
-# 🌟 100% 穩定抗封鎖版數據源：逐一抓取個股，避免被 Yahoo API 封鎖
-@st.cache_data(ttl=1800)  # 快取時間調整為 30 分鐘，兼顧即時性與穩定度
+# 🌟 數據源：逐一抓取權值股
+@st.cache_data(ttl=1800)
 def build_custom_heatmap():
-    # 定義板塊、行業與股票代碼
     stocks_data = {
         "Ticker": [
             "MSFT", "AAPL", "NVDA", "GOOGL", "AMZN", "META", "AVGO",
@@ -50,10 +49,8 @@ def build_custom_heatmap():
     }
     
     rows = []
-    # 改為逐一抓取，確保其中一檔失敗時，其他股票地圖還能畫出來
     for i, ticker in enumerate(stocks_data["Ticker"]):
         try:
-            # 限制只抓 2 天歷史紀錄，減少對 Yahoo 的伺服器負擔
             stock_obj = yf.Ticker(ticker)
             hist = stock_obj.history(period="2d")
             
@@ -62,10 +59,8 @@ def build_custom_heatmap():
                 close_y = hist['Close'].iloc[-2]
                 pct_change = ((close_t - close_y) / close_y) * 100
                 
-                # 市值預設給予基礎值，避免 info 接口被封鎖時卡死
                 market_cap = 500000000000 if ticker in ["MSFT", "AAPL", "NVDA", "GOOGL", "AMZN"] else 100000000000
                 try:
-                    # 嘗試獲取真實市值，若被擋則直接沿用上方預設值
                     market_cap = stock_obj.info.get("marketCap", market_cap)
                 except:
                     pass
@@ -78,17 +73,15 @@ def build_custom_heatmap():
                     "Market_Cap": market_cap,
                     "Label": f"{ticker}<br>{round(pct_change, 2)}%"
                 })
-        except Exception as e:
-            # 單股失敗時跳過，繼續抓下一檔
+        except:
             continue
             
     return pd.DataFrame(rows)
 
-
 # 3. 網頁佈局
 col_left, col_right = st.columns([1.3, 1.5])
 
-# === 左半邊：數字大盤與「自製互動熱力圖」 ===
+# === 左半邊：數字大盤與自製熱力圖 ===
 with col_left:
     st.subheader("📈 主要市場昨日表現")
     market_tickers = {"S&P 500 指數": "^GSPC", "費城半導體": "^SOX", "台積電 ADR": "TSM", "輝達 NVDA": "NVDA"}
@@ -109,32 +102,34 @@ with col_left:
     
     st.divider()
     
-    # 🌟 自製 Plotly Treemap 熱力圖呈現
+    # 呈現自製熱力圖
     st.subheader("🗺️ 自製美股權值股熱力圖 (台股配色)")
     with st.spinner("正在即時繪製美股板塊地圖..."):
         df_heatmap = build_custom_heatmap()
         
         if not df_heatmap.empty:
-            # 建立 Plotly 樹狀圖
+            # 建立樹狀圖
             fig = px.treemap(
                 df_heatmap,
-                path=['Sector', 'Industry', 'Label'], # 階層結構：板塊 -> 行業 -> 股票代碼
-                values='Market_Cap',                  # 方塊大小由市值決定
-                color='Pct_Change',                   # 顏色由漲跌幅決定
-                color_continuous_scale=[[0, '#00B050'], [0.5, '#222222'], [1, '#FF4B4B']], # 綠色(跌) -> 暗色(平) -> 紅色(漲)
+                path=['Sector', 'Industry', 'Label'],
+                values='Market_Cap',
+                color='Pct_Change',
+                color_continuous_scale=[[0, '#00B050'], [0.5, '#222222'], [1, '#FF4B4B']], # 綠跌紅漲
                 color_continuous_midpoint=0
             )
             
-            # 美化圖表排版
+            # 🛠️ 終極簡化調整：徹底拿掉會報錯的 update_traces 參數，全面交由內建渲染
             fig.update_layout(
                 margin=dict(t=10, l=10, r=10, b=10),
                 height=500,
-                coloraxis_showscale=False # 隱藏側邊顏色條，保持乾淨
+                coloraxis_showscale=False
             )
-            fig.update_traces(textposition="inside", textfont_size=14)
             
-            # 在網頁渲染互動圖表
+            # 渲染互動圖表
             st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            st.write("💡 *滑鼠移到方塊上可看詳情，點擊板塊方塊可局部放大。*")
+        else:
+            st.warning("暫時無法即時繪製熱力圖，請重新整理網頁。")
 
 
 # === 右半邊：AI 盤前消息與板塊分析 ===

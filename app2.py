@@ -250,6 +250,27 @@ with col_right:
                 response = client.models.generate_content(
                     model='gemini-2.5-flash', contents=prompt, config={'tools': [{'google_search': {}}]} 
                 )
+                           # 1. 顯示 AI 產出的繁體中文報告
                 st.markdown(response.text)
+                
+                # 2. 🛠️ 僅改動這裡：自動提取 Google 搜尋的出處，並生成超連結列表
+                try:
+                    # 檢查是否有聯網搜尋的元數據
+                    search_chunks = response.candidates[0].grounding_metadata.grounding_chunks
+                    if search_chunks:
+                        st.markdown("---")
+                        st.markdown("🔗 **【新聞出處來源】**")
+                        
+                        # 用一組 Set 來過濾重複的網址
+                        seen_links = set()
+                        for chunk in search_chunks:
+                            title = chunk.web.title
+                            uri = chunk.web.uri
+                            if uri not in seen_links:
+                                seen_links.add(uri)
+                                # 渲染成 Streamlit 精美超連結
+                                st.caption(f"🔹 [{title}]({uri})")
+                except:
+                    pass # 如果當天沒有觸發聯網，則自動跳過，不影響報錯
+                
             except Exception as e:
-                st.error(f"AI 摘要生成失敗: {e}")
